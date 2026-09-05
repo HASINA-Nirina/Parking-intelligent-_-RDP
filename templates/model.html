@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Modèle - Parking Intelligent{% endblock %}
+{% block content %}
+<h1>Modèle du Réseau de Petri</h1>
+
+<div class="grid-2">
+    <div class="card">
+        <h3>Places</h3>
+        <table class="tbl">
+            <tr><th>Id</th><th>Signification</th></tr>
+            {% for p, name in places %}
+            <tr><td>{{ p }}</td><td>{{ name }}</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+    <div class="card">
+        <h3>Transitions</h3>
+        <table class="tbl">
+            <tr><th>Id</th><th>Événement</th></tr>
+            {% for t, name in transitions %}
+            <tr><td>{{ t }}</td><td>{{ name }}</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Arcs (Pré / Post)</h3>
+    <table class="tbl">
+        <tr><th>Transition</th><th>Consomme (Pré)</th><th>Produit (Post)</th><th>Condition spéciale</th></tr>
+        {% for t, name in transitions %}
+        <tr>
+            <td>{{ t }} — {{ name }}</td>
+            <td>{% for p, w in pre.get(t, {}).items() %}{{ w }}×{{ p }} {% endfor %}</td>
+            <td>{% for p, w in post.get(t, {}).items() %}{{ w }}×{{ p }} {% endfor %}</td>
+            <td>{% if inhibitors.get(t) %}Arc inhibiteur : actif seulement si {{ inhibitors.get(t) }} = 0{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p class="note">
+        Remarque : T1 et T3 partent tous les deux de P1 → c'est un <strong>conflit structurel</strong>.
+        T2 a besoin d'un jeton dans P2 <em>et</em> dans P3 → c'est une <strong>synchronisation</strong>.
+    </p>
+</div>
+
+<div class="card">
+    <h3>Choisir un scénario (marquage initial M0)</h3>
+    <div class="scenario-buttons">
+        {% for s in scenarios %}
+        <button class="btn scenario-btn {% if s == current_scenario %}active{% endif %}" data-scenario="{{ s }}">
+            {{ s.replace('_',' ') }}
+        </button>
+        {% endfor %}
+    </div>
+    <p id="scenario-feedback" class="note"></p>
+    <a class="btn primary" href="{{ url_for('simulation_page') }}">Aller à la simulation →</a>
+</div>
+
+<script>
+document.querySelectorAll('.scenario-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const scenario = btn.dataset.scenario;
+        const res = await fetch('/api/scenario', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({scenario})
+        });
+        const data = await res.json();
+        document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('scenario-feedback').textContent =
+            'Scénario "' + scenario + '" chargé. Marquage initial : ' + JSON.stringify(data.marking);
+    });
+});
+</script>
+{% endblock %}
